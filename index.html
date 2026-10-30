@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FarmFire Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{--red:#d62828;--red-d:#a4161a;--green:#2a9d4b;--bg:#f4f1ea;--card:#fff;--text:#1d1d1b;--muted:#6b6b66;--border:#ddd8cc;--nav:#24331f}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100dvh}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--nav);color:#fff}
+.brand{font-weight:800;font-size:1.15rem;white-space:nowrap}
+.viewas{display:flex;align-items:center;gap:6px;font-size:.8rem}
+#viewAs{max-width:58vw;padding:6px;border-radius:8px;border:0;font-size:.9rem;margin:0;width:auto}
+#alertBanner{background:var(--red);color:#fff;padding:10px 12px;font-size:.95rem;animation:flash 1.2s infinite alternate}
+@keyframes flash{to{background:var(--red-d)}}
+nav{display:flex;overflow-x:auto;background:#fff;border-bottom:1px solid var(--border)}
+nav button{flex:1;min-width:max-content;padding:10px 12px;border:0;background:none;font-size:.9rem;border-bottom:3px solid transparent;cursor:pointer;color:var(--text)}
+nav button.active{border-bottom-color:var(--red);font-weight:700}
+.badge{background:var(--red);color:#fff;border-radius:999px;padding:1px 7px;font-size:.75rem;margin-left:4px}
+main{flex:1;min-height:0;position:relative}
+.tab{display:none;height:100%;overflow:auto;padding:12px 12px 100px}
+.tab.active{display:block}
+#tab-map.active{display:flex;flex-direction:column;padding:0}
+.maptools{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:8px 12px;background:#fff;border-bottom:1px solid var(--border);font-size:.9rem}
+.maptools label{display:flex;gap:6px;align-items:center;margin:0;font-weight:400}
+.hint{background:#fff3c4;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:600}
+#map{flex:1;min-height:300px}
+#fireBtn{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:1000;background:var(--red);color:#fff;border:0;border-radius:999px;padding:16px 30px;font-size:1.1rem;font-weight:800;box-shadow:0 6px 20px rgba(214,40,40,.5);cursor:pointer}
+.hidden{display:none!important}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);font-size:.95rem;text-decoration:none;cursor:pointer;font-family:inherit}
+.btn.sm{padding:5px 10px;font-size:.85rem}
+.btn.primary{background:var(--nav);color:#fff;border-color:var(--nav)}
+.btn.red{background:var(--red);color:#fff;border-color:var(--red)}
+.btn.danger{color:var(--red);border-color:var(--red)}
+.btn.big{width:100%;justify-content:center;padding:14px;font-size:1.05rem;font-weight:700;margin-top:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.row.between{justify-content:space-between}
+.row input{flex:1;min-width:150px;margin:0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin:0 auto 12px;max-width:900px}
+.card h2,.card h3{margin:0 0 8px}
+label{display:block;margin:10px 0 4px;font-weight:600;font-size:.9rem}
+label.check{font-weight:400;display:flex;gap:10px;align-items:center;margin:8px 0}
+input,select,textarea{width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font:inherit;margin-top:4px;background:#fff;color:var(--text)}
+input[type=checkbox]{width:auto;margin:0;transform:scale(1.25)}
+fieldset{border:1px solid var(--border);border-radius:8px;margin-top:12px}
+.muted{color:var(--muted);font-size:.85rem}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.78rem;font-weight:700;color:#fff;white-space:nowrap}
+.pill.red{background:var(--red)}.pill.amber{background:#d97e0f}.pill.green{background:var(--green)}.pill.grey{background:#999}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center}
+.modal-card{background:#fff;width:100%;max-width:560px;max-height:92dvh;overflow:auto;border-radius:16px 16px 0 0;padding:18px}
+.modal-card h2{margin-top:0}
+@media(min-width:700px){.modal{align-items:center}.modal-card{border-radius:16px}}
+.callout{background:#fde8e8;border-left:4px solid var(--red);padding:10px;border-radius:8px;margin:8px 0}
+.pin{background:none;border:0}
+.pin-in{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45)}
+.farm-pin{font-size:26px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.6))}
+.farm-pin.me{font-size:34px}
+.fire-pin{font-size:40px;line-height:1;animation:pulse .8s infinite alternate}
+@keyframes pulse{to{transform:scale(1.25)}}
+.stats{display:flex;gap:8px;max-width:900px;margin:0 auto}
+.stat{flex:1;color:#fff;border-radius:12px;padding:12px;font-size:1.6rem;font-weight:800;text-align:center}
+.stat span{display:block;font-size:.8rem;font-weight:600}
+.stat.red{background:var(--red)}.stat.amber{background:#d97e0f}.stat.green{background:var(--green)}
+.tablewrap{overflow-x:auto;max-width:900px;margin:12px auto 0;background:#fff;border:1px solid var(--border);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+th{background:#f7f5ef}
+.flist{list-style:none;padding:0;margin:0}
+.flist li{padding:10px 0;border-bottom:1px solid var(--border)}
+.pre{white-space:pre-wrap;background:#f7f5ef;padding:10px;border-radius:8px}
+.empty{text-align:center;color:var(--muted);padding:40px}
+.alert.active{border-left:6px solid var(--red)}
+.alert.resolved{opacity:.7}
+.pop p{margin:6px 0}
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;z-index:3000}
+@media print{header,nav,#fireBtn,#alertBanner,.btn,.row{display:none!important}.tab{padding:0}.card{border:0}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">🔥 FarmFire</div>
+  <div class="viewas"><span>View as</span><select id="viewAs" aria-label="View as"></select></div>
+</header>
+<div id="alertBanner" class="hidden"></div>
+<nav id="tabs">
+  <button data-tab="map" class="active">🗺️ Map</button>
+  <button data-tab="alerts">🚨 Alerts<span id="alertCount" class="badge hidden"></span></button>
+  <button data-tab="plan">📋 Safety plan</button>
+  <button data-tab="equipment">🧯 Equipment log</button>
+  <button data-tab="settings">⚙️ Farms</button>
+</nav>
+<main>
+  <section id="tab-map" class="tab active">
+    <div class="maptools">
+      <button id="addBtn" class="btn sm primary">+ Add to map</button>
+      <label><input type="checkbox" id="show-hazard" checked> ⚠️ Hazards</label>
+      <label><input type="checkbox" id="show-water" checked> 💧 Water</label>
+      <label><input type="checkbox" id="show-assembly" checked> 🟢 Safety points</label>
+    </div>
+    <div id="addHint" class="hint hidden"><span id="addHintText"></span><button id="cancelAdd" class="btn sm">Cancel</button></div>
+    <div id="map"></div>
+  </section>
+  <section id="tab-alerts" class="tab"><div id="alertsList"></div></section>
+  <section id="tab-plan" class="tab"><div id="planView"></div></section>
+  <section id="tab-equipment" class="tab"><div id="equipView"></div></section>
+  <section id="tab-settings" class="tab"><div id="settingsView"></div></section>
+</main>
+<button id="fireBtn">🔥 REPORT FIRE</button>
+<div id="modal" class="modal hidden"><div class="modal-card" id="modalBody"></div></div>
+
+<script>
+(function () {
+'use strict';
+
+/* ---------- Settings ---------- */
+const MILE = 1609.344;
+const RADIUS = 2 * MILE;            // alert radius: 2 miles
+const KEY = 'farmfire_v1';          // shared data (all farms in this demo)
+const VIEW_KEY = 'farmfire_view';   // who you're "viewing as" (per browser tab)
+
+const TYPES = {
+  hazard: { label: 'Fire hazard', color: '#e4572e', items: {
+    fuel:       { label: 'Fuel / diesel store', icon: '⛽' },
+    chemical:   { label: 'Chemical / pesticide store', icon: '☣️' },
+    fertiliser: { label: 'Fertiliser store', icon: '🧪' },
+    straw:      { label: 'Straw / hay stack', icon: '🌾' },
+    grain:      { label: 'Grain store / dryer', icon: '🏭' },
+    gas:        { label: 'Gas cylinders / LPG tank', icon: '🛢️' },
+    electrics:  { label: 'Electrics / solar / batteries', icon: '⚡' },
+    machinery:  { label: 'Machinery shed', icon: '🚜' },
+    livestock:  { label: 'Livestock building', icon: '🐄' },
+    other:      { label: 'Other hazard', icon: '⚠️' } } },
+  water: { label: 'Water source', color: '#1f77d0', items: {
+    hydrant: { label: 'Fire hydrant', icon: '🚒' },
+    pump:    { label: 'Water pump', icon: '💧' },
+    tank:    { label: 'Water tank / IBC', icon: '🪣' },
+    pond:    { label: 'Pond / reservoir / lake', icon: '🌊' },
+    river:   { label: 'River / brook access', icon: '🏞️' },
+    bowser:  { label: 'Water bowser (parked)', icon: '🚛' } } },
+  assembly: { label: 'Safety point', color: '#2a9d4b', items: {
+    assembly:     { label: 'Assembly point', icon: '🧍' },
+    access:       { label: 'Fire engine access / gate', icon: '🚪' },
+    isolation:    { label: 'Power / gas shut-off', icon: '🔌' },
+    extinguisher: { label: 'Extinguisher point', icon: '🧯' } } }
+};
+
+const NEEDS = [
+  ['bowser', 'Water bowser'],
+  ['hydrant', 'Hydrant / water supply access'],
+  ['tanker', 'Slurry tanker with water'],
+  ['plough', 'Tractor & plough/discs for a firebreak'],
+  ['telehandler', 'Telehandler / loader'],
+  ['people', 'Extra people'],
+  ['stock', 'Help moving livestock'],
+  ['machinery', 'Help moving machinery']
+];
+const NEEDS_MAP = Object.fromEntries(NEEDS);
+
+const EQUIP_TYPES = ['Fire hydrant', 'Fire extinguisher – water', 'Fire extinguisher – foam',
+  'Fire extinguisher – CO2', 'Fire extinguisher – powder', 'Fire blanket', 'Hose reel',
+  'Water pump', 'Smoke / heat detector', 'Other'];
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const todayISO = () => new Date().toISOString().slice(0, 10);
+function addDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+function daysUntil(s) { if (!s) return null; return Math.round((new Date(s + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000); }
+const fmtDate = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('en-GB') : '–';
+function distM(a, b) {
+  const R = 6371000, r = x => x * Math.PI / 180;
+  const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const miles = m => (m / MILE).toFixed(1) + ' mi';
+function ago(t) {
+  const s = (Date.now() - t) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + ' min ago';
+  if (s < 86400) return Math.floor(s / 3600) + ' h ago';
+  return new Date(t).toLocaleString('en-GB');
+}
+const dirLink = (lat, lng) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2500); }
+
+/* ---------- Data ---------- */
+let state, view, map, mode = null, fireDraft = null, pendingFarmName = null, currentTab = 'map';
+const layers = {}, markers = {};
+
+function seed() {
+  const c = { lat: 52.912, lng: -0.640 };
+  const farms = [
+    { id: 'f1', name: 'Manor Farm', lat: c.lat, lng: c.lng },
+    { id: 'f2', name: 'Hill Top Farm', lat: c.lat + 0.015, lng: c.lng + 0.02 },
+    { id: 'f3', name: 'Brook House Farm', lat: c.lat - 0.02, lng: c.lng - 0.01 },
+    { id: 'f4', name: 'Westfield Farm', lat: c.lat + 0.005, lng: c.lng - 0.035 },
+    { id: 'f5', name: 'Far Grange', lat: c.lat - 0.05, lng: c.lng + 0.06 }
+  ];
+  const at = (fid, dLat, dLng) => { const f = farms.find(x => x.id === fid); return { lat: f.lat + dLat, lng: f.lng + dLng }; };
+  const vis = (e, n, fs) => ({ employees: e, neighbours: n, fireservice: fs });
+  const feat = (farmId, kind, type, name, dLat, dLng, v, notes = '') =>
+    ({ id: uid(), farmId, kind, type, name, notes, ...at(farmId, dLat, dLng), visibility: v });
+  const features = [
+    feat('f1', 'hazard', 'fuel', 'Red diesel tank (5,000L)', 0.0006, 0.0008, vis(true, false, true), 'Bunded tank behind workshop'),
+    feat('f1', 'hazard', 'chemical', 'Chemical store', 0.0009, -0.0004, vis(true, false, true), 'Locked. Key in farm office.'),
+    feat('f1', 'hazard', 'straw', 'Straw stack (approx. 400 bales)', -0.0012, 0.0015, vis(true, true, true)),
+    feat('f1', 'hazard', 'gas', 'LPG tank – grain dryer', 0.0002, -0.0011, vis(true, false, true)),
+    feat('f1', 'water', 'hydrant', 'Hydrant by main gate', -0.0004, -0.0016, vis(true, true, true), 'Pillar hydrant'),
+    feat('f1', 'water', 'pond', 'Irrigation reservoir', -0.004, 0.006, vis(true, true, true), 'Water all year. Tractor access on south bank.'),
+    feat('f1', 'water', 'bowser', 'Water bowser 2,000L', 0.0004, 0.0003, vis(true, true, false), 'Usually parked in machinery shed'),
+    feat('f1', 'assembly', 'assembly', 'Assembly point – front lawn', -0.0006, -0.0005, vis(true, false, true)),
+    feat('f1', 'assembly', 'isolation', 'Mains electric isolator', 0.0007, 0.0001, vis(true, false, true), 'Inside workshop door, on the left'),
+    feat('f2', 'water', 'tank', 'Rainwater tanks 10,000L', 0.0005, 0.0005, vis(true, true, true)),
+    feat('f2', 'hazard', 'fertiliser', 'Fertiliser store', -0.0005, 0.0006, vis(true, true, true)),
+    feat('f3', 'water', 'hydrant', 'Hydrant on lane', 0.0006, -0.0005, vis(true, true, true))
+  ];
+  const eq = (name, type, location, last, exp) => ({ id: uid(), farmId: 'f1', name, type, location, lastTest: last, expiry: exp, notes: '' });
+  const equipment = [
+    eq('HYD-01', 'Fire hydrant', 'Main gate', addDays(-300), addDays(65)),
+    eq('EXT-01', 'Fire extinguisher – CO2', 'Workshop', addDays(-380), addDays(-15)),
+    eq('EXT-02', 'Fire extinguisher – powder', 'Grain dryer', addDays(-345), addDays(20)),
+    eq('EXT-03', 'Fire extinguisher – foam', 'Farm office', addDays(-120), addDays(245)),
+    eq('BLK-01', 'Fire blanket', 'Farmhouse kitchen', addDays(-200), addDays(165))
+  ];
+  const plans = { f1: {
+    address: 'Manor Farm, Example Lane', w3w: '',
+    assembly: 'Front lawn by the farmhouse',
+    contacts: 'Emergency: 999\nFarm owner: 07700 900000\nFarm manager: 07700 900001',
+    procedure: '1. Raise the alarm – shout "FIRE" and call 999.\n2. Press REPORT FIRE in this app to alert neighbouring farms.\n3. Only tackle a fire if it is small, you are trained and it is safe.\n4. Shut off power and gas if safe to do so.\n5. Move machinery and livestock away only if safe.\n6. Go to the assembly point and do a headcount.\n7. Meet the fire service at the main gate and show them the hazard map.',
+    notes: 'Spare keys for all sheds are in the farm office key box.'
+  } };
+  return { farms, features, equipment, plans, alerts: [] };
+}
+
+function load() {
+  try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.farms) return s; } catch (e) {}
+  return seed();
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+function loadView() {
+  let v = null;
+  try { v = JSON.parse(sessionStorage.getItem(VIEW_KEY)); } catch (e) {}
+  v = v || { role: 'owner', me: 'f1' };
+  if (!state.farms.find(f => f.id === v.me)) v.me = state.farms[0].id;
+  return v;
+}
+function saveView() { try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (e) {} }
+
+const farm = id => state.farms.find(f => f.id === id);
+const myFarm = () => farm(view.me);
+
+/* ---------- Permissions ---------- */
+function canSee(f) {
+  const v = f.visibility || {};
+  if (view.role === 'fire') return !!v.fireservice;
+  if (f.farmId === view.me) return view.role === 'owner' || !!v.employees;
+  return !!v.neighbours;
+}
+const canEdit = f => view.role === 'owner' && f.farmId === view.me;
+
+/* ---------- Map ---------- */
+function initMap() {
+  const me = myFarm();
+  map = L.map('map').setView([me.lat, me.lng], 15);
+  const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 19, attribution: 'Imagery © Esri' });
+  const street = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom: 19, attribution: '© OpenStreetMap contributors' });
+  sat.addTo(map);
+  L.control.layers({ 'Satellite': sat, 'Map': street }).addTo(map);
+  ['farms', 'hazard', 'water', 'assembly', 'alerts'].forEach(k => { layers[k] = L.layerGroup().addTo(map); });
+  map.on('click', onMapClick);
+  ['hazard', 'water', 'assembly'].forEach(k => {
+    const cb = $('#show-' + k);
+    cb.onchange = () => cb.checked ? map.addLayer(layers[k]) : map.removeLayer(layers[k]);
+  });
+}
+
+function featIcon(kind, type) {
+  const t = TYPES[kind].items[type] || { icon: '❓' };
+  return L.divIcon({ className: 'pin', html: `<div class="pin-in" style="background:${TYPES[kind].color}">${t.icon}</div>`,
+    iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -16] });
+}
+const farmIcon = isMe => L.divIcon({ className: 'pin', html: `<div class="farm-pin ${isMe ? 'me' : ''}">🏠</div>`, iconSize: [34, 34], iconAnchor: [17, 17] });
+const fireIcon = L.divIcon({ className: 'pin', html: '<div class="fire-pin">🔥</div>', iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -20] });
+
+function popupHtml(f) {
+  const t = TYPES[f.kind].items[f.type], owner = farm(f.farmId);
+  const v = f.visibility;
+  const visTxt = [v.employees && 'Employees', v.neighbours && 'Neighbours', v.fireservice && 'Fire service'].filter(Boolean).join(', ') || 'Only me';
+  return `<div class="pop"><b>${t.icon} ${esc(f.name)}</b>
+    <div class="muted">${t.label} · ${esc(owner ? owner.name : '')}</div>
+    ${f.notes ? `<p>${esc(f.notes)}</p>` : ''}
+    ${canEdit(f) ? `<div class="muted">Visible to: ${visTxt}</div>` : ''}
+    <div class="row"><a class="btn sm" target="_blank" rel="noopener" href="${dirLink(f.lat, f.lng)}">Directions</a>
+    ${canEdit(f) ? `<button class="btn sm" onclick="App.editFeature('${f.id}')">Edit</button>` : ''}</div></div>`;
+}
+
+function renderMap() {
+  Object.values(layers).forEach(l => l.clearLayers());
+  state.farms.forEach(f => {
+    L.marker([f.lat, f.lng], { icon: farmIcon(f.id === view.me) })
+      .bindTooltip(f.name + (f.id === view.me && view.role !== 'fire' ? ' (you)' : '')).addTo(layers.farms);
+  });
+  state.features.filter(canSee).forEach(f => {
+    const m = L.marker([f.lat, f.lng], { icon: featIcon(f.kind, f.type), draggable: canEdit(f) });
+    m.bindPopup(() => popupHtml(f));
+    m.on('dragend', ev => { const p = ev.target.getLatLng(); f.lat = p.lat; f.lng = p.lng; save(); toast('Position updated'); });
+    m.addTo(layers[f.kind]);
+    markers[f.id] = m;
+  });
+  state.alerts.filter(a => a.status === 'active' && alertRelevant(a)).forEach(a => {
+    L.circle([a.lat, a.lng], { radius: RADIUS, color: '#d62828', weight: 2, fillOpacity: 0.06, dashArray: '6 6' }).addTo(layers.alerts);
+    const from = farm(a.farmId);
+    L.marker([a.lat, a.lng], { icon: fireIcon })
+      .bindPopup(`<b>🔥 Fire – ${esc(from ? from.name : '')}</b><div class="muted">${ago(a.time)}</div><p><b>Needs:</b> ${esc(needsText(a))}</p>${a.msg ? `<p>${esc(a.msg)}</p>` : ''}<a class="btn sm" target="_blank" rel="noopener" href="${dirLink(a.lat, a.lng)}">Directions</a>`)
+      .addTo(layers.alerts);
+  });
+}
+
+function setMode(m, text) {
+  mode = m;
+  $('#addHint').classList.toggle('hidden', !m);
+  if (m) $('#addHintText').textContent = text;
+  setTimeout(() => map.invalidateSize(), 50);
+}
+
+function onMapClick(e) {
+  const { lat, lng } = e.latlng;
+  if (mode === 'add') {
+    setMode(null);
+    openFeatureForm({ id: null, farmId: view.me, kind: 'hazard', type: 'fuel', name: '', notes: '', lat, lng,
+      visibility: { employees: true, neighbours: false, fireservice: true } });
+  } else if (mode === 'fire') {
+    setMode(null);
+    Object.assign(fireDraft, { lat, lng, src: 'chosen on map' });
+    openFire();
+  } else if (mode === 'farmloc') {
+    setMode(null);
+    const f = myFarm(); f.lat = lat; f.lng = lng; save(); refreshAll(); toast('Farm location saved');
+  } else if (mode === 'newfarm') {
+    setMode(null);
+    state.farms.push({ id: 'f' + uid(), name: pendingFarmName, lat, lng }); save(); refreshAll(); toast('Farm added'); showTab('settings');
+  }
+}
+
+/* ---------- Add / edit map items ---------- */
+function openFeatureForm(f) {
+  const isNew = !f.id;
+  modal(`<h2>${isNew ? 'Add to map' : 'Edit item'}</h2>
+    <label>Category<select id="ff-kind">${Object.entries(TYPES).map(([k, t]) => `<option value="${k}" ${k === f.kind ? 'selected' : ''}>${t.label}</option>`).join('')}</select></label>
+    <label>Type<select id="ff-type"></select></label>
+    <label>Name / description<input id="ff-name" value="${esc(f.name)}" placeholder="e.g. Diesel tank behind workshop"></label>
+    <label>Notes<textarea id="ff-notes" rows="3" placeholder="e.g. size, access, where the key is">${esc(f.notes)}</textarea></label>
+    <fieldset><legend>Who can see this?</legend>
+      <label class="check"><input type="checkbox" id="ff-emp" ${f.visibility.employees ? 'checked' : ''}> My employees</label>
+      <label class="check"><input type="checkbox" id="ff-nb" ${f.visibility.neighbours ? 'checked' : ''}> Neighbouring farms</label>
+      <label class="check"><input type="checkbox" id="ff-fs" ${f.visibility.fireservice ? 'checked' : ''}> Fire service</label>
+      <p class="muted">You (the owner) can always see everything on your own farm.</p>
+    </fieldset>
+    <p class="muted">📍 ${f.lat.toFixed(5)}, ${f.lng.toFixed(5)} — you can drag the pin on the map to move it.</p>
+    <div class="row"><button class="btn primary" id="ff-save">Save</button>
+    ${isNew ? '' : '<button class="btn danger" id="ff-del">Delete</button>'}
+    <button class="btn" id="ff-cancel">Cancel</button></div>`);
+  const fillTypes = () => {
+    const k = $('#ff-kind').value;
+    $('#ff-type').innerHTML = Object.entries(TYPES[k].items).map(([t, i]) => `<option value="${t}" ${t === f.type ? 'selected' : ''}>${i.icon} ${i.label}</option>`).join('');
+  };
+  fillTypes();
+  $('#ff-kind').onchange = fillTypes;
+  $('#ff-cancel').onclick = closeModal;
+  $('#ff-save').onclick = () => {
+    const kind = $('#ff-kind').value, type = $('#ff-type').value;
+    const data = { ...f, kind, type,
+      name: $('#ff-name').value.trim() || TYPES[kind].items[type].label,
+      notes: $('#ff-notes').value.trim(),
+      visibility: { employees: $('#ff-emp').checked, neighbours: $('#ff-nb').checked, fireservice: $('#ff-fs').checked } };
+    if (isNew) { data.id = uid(); state.features.push(data); }
+    else { state.features[state.features.findIndex(x => x.id === f.id)] = data; }
+    save(); closeModal(); renderMap(); renderPlan(); toast('Saved');
+  };
+  if (!isNew) $('#ff-del').onclick = () => {
+    if (!confirm('Delete this item from the map?')) return;
+    state.features = state.features.filter(x => x.id !== f.id);
+    save(); closeModal(); renderMap(); renderPlan();
+  };
+}
+
+/* ---------- Fire alerts ---------- */
+function startFire() {
+  const me = myFarm();
+  fireDraft = { lat: me.lat, lng: me.lng, src: 'farmyard', needs: [], other: '', msg: '' };
+  openFire();
+}
+function captureFire() {
+  if (!$('#fireMsg')) return;
+  fireDraft.msg = $('#fireMsg').value.trim();
+  fireDraft.other = $('#fireOther').value.trim();
+  fireDraft.needs = [...document.querySelectorAll('.need:checked')].map(i => i.value);
+}
+function openFire() {
+  modal(`<h2>🔥 Report a fire</h2>
+    <div class="callout"><b>Call 999 first.</b> This app alerts neighbouring farms — it does not call the fire service.
+      <div class="row"><a class="btn red" href="tel:999">📞 Call 999</a></div></div>
+    <label>Where is the fire?</label>
+    <div class="row"><button class="btn" id="locFarm">At my farmyard</button><button class="btn" id="locGps">Use my GPS</button><button class="btn" id="locTap">Tap on map</button></div>
+    <p class="muted" id="locText">📍 ${fireDraft.lat.toFixed(5)}, ${fireDraft.lng.toFixed(5)} (${esc(fireDraft.src)})</p>
+    <label>What help do you need?</label>
+    ${NEEDS.map(([k, l]) => `<label class="check"><input type="checkbox" class="need" value="${k}" ${fireDraft.needs.includes(k) ? 'checked' : ''}> ${l}</label>`).join('')}
+    <label>Anything else?<input id="fireOther" value="${esc(fireDraft.other)}" placeholder="e.g. diesel bowser, hoses"></label>
+    <label>Message (optional)<textarea id="fireMsg" rows="2" placeholder="e.g. Combine fire in the field by the main road, wind blowing east">${esc(fireDraft.msg)}</textarea></label>
+    <button class="btn red big" id="sendAlert">Send alert to farms within 2 miles</button>
+    <div class="row"><button class="btn" id="fireCancel">Cancel</button></div>`);
+  $('#locFarm').onclick = () => { captureFire(); const me = myFarm(); Object.assign(fireDraft, { lat: me.lat, lng: me.lng, src: 'farmyard' }); openFire(); };
+  $('#locGps').onclick = () => {
+    captureFire();
+    if (!navigator.geolocation) { alert('GPS is not available on this device.'); return; }
+    $('#locText').textContent = 'Getting GPS position…';
+    navigator.geolocation.getCurrentPosition(
+      p => { Object.assign(fireDraft, { lat: p.coords.latitude, lng: p.coords.longitude, src: 'GPS' }); openFire(); },
+      err => { alert('Could not get GPS: ' + err.message); openFire(); },
+      { enableHighAccuracy: true, timeout: 10000 });
+  };
+  $('#locTap').onclick = () => { captureFire(); closeModal(); showTab('map'); setMode('fire', 'Tap the map where the fire is.'); };
+  $('#sendAlert').onclick = sendAlert;
+  $('#fireCancel').onclick = () => { fireDraft = null; closeModal(); };
+}
+function sendAlert() {
+  captureFire();
+  if (!fireDraft.needs.length && !fireDraft.other && !confirm('You haven\'t ticked any help. Send the alert anyway?')) return;
+  const a = { id: uid(), farmId: view.me, lat: fireDraft.lat, lng: fireDraft.lng, time: Date.now(),
+    needs: fireDraft.needs, other: fireDraft.other, msg: fireDraft.msg, status: 'active', responses: [] };
+  const notified = state.farms.filter(f => f.id !== view.me)
+    .map(f => ({ f, d: distM(a, f) })).filter(x => x.d <= RADIUS).sort((x, y) => x.d - y.d);
+  a.notified = notified.map(x => x.f.id);
+  state.alerts.push(a); save(); fireDraft = null;
+  refreshAll();
+  modal(`<h2>✅ Alert sent</h2>
+    <p>${notified.length} farm(s) within 2 miles were alerted:</p>
+    <ul>${notified.map(x => `<li>${esc(x.f.name)} – ${miles(x.d)}</li>`).join('') || '<li>No farms registered within 2 miles</li>'}</ul>
+    <div class="callout"><b>Have you called 999?</b><div class="row"><a class="btn red" href="tel:999">📞 Call 999</a></div></div>
+    <p class="muted">Demo version: alerts only appear in this browser. Change “View as” to a neighbouring farm to see what they would receive.</p>
+    <button class="btn primary" id="okBtn">OK</button>`);
+  $('#okBtn').onclick = () => { closeModal(); viewAlert(a.id); };
+}
+function needsText(a) { return [...(a.needs || []).map(n => NEEDS_MAP[n]), a.other].filter(Boolean).join(', ') || 'Not specified'; }
+function alertRelevant(a) {
+  if (view.role === 'fire' || a.farmId === view.me) return true;
+  return distM(a, myFarm()) <= RADIUS;
+}
+function incomingAlerts() {
+  return state.alerts.filter(a => a.status === 'active' && alertRelevant(a) && (view.role === 'fire' || a.farmId !== view.me));
+}
+function viewAlert(id) {
+  const a = state.alerts.find(x => x.id === id); if (!a) return;
+  showTab('map');
+  setTimeout(() => map.fitBounds(L.latLng(a.lat, a.lng).toBounds(RADIUS * 2)), 80);
+}
+function offerHelp(id) {
+  const a = state.alerts.find(x => x.id === id); if (!a) return;
+  const opts = a.needs.length ? a.needs : NEEDS.map(n => n[0]);
+  modal(`<h2>🤝 Offer help</h2>
+    <p class="muted">${esc(farm(a.farmId)?.name || '')} asked for: ${esc(needsText(a))}</p>
+    <label>What can you bring?</label>
+    ${opts.map(k => `<label class="check"><input type="checkbox" class="offer" value="${k}"> ${NEEDS_MAP[k]}</label>`).join('')}
+    <label>Message<input id="offerMsg" placeholder="e.g. On my way with 10,000L bowser, 15 mins"></label>
+    <div class="row"><button class="btn primary" id="offerSend">Send</button><button class="btn" id="offerCancel">Cancel</button></div>`);
+  $('#offerCancel').onclick = closeModal;
+  $('#offerSend').onclick = () => {
+    const items = [...document.querySelectorAll('.offer:checked')].map(i => NEEDS_MAP[i.value]);
+    const msg = $('#offerMsg').value.trim();
+    const text = [items.length ? 'Can help with: ' + items.join(', ') : '', msg].filter(Boolean).join(' — ');
+    if (!text) { alert('Tick something or write a message.'); return; }
+    a.responses.push({ farmId: view.me, text, time: Date.now() });
+    save(); closeModal(); refreshAll(); toast('Response sent');
+  };
+}
+function resolveAlert(id) {
+  const a = state.alerts.find(x => x.id === id);
+  if (!a || !confirm('Mark this fire as out? Neighbours will be told it is over.')) return;
+  a.status = 'resolved'; a.resolvedAt = Date.now(); save(); refreshAll();
+}
+
+function renderAlerts() {
+  const me = myFarm();
+  const list = state.alerts.filter(alertRelevant).sort((a, b) => b.time - a.time);
+  $('#alertsList').innerHTML = list.length ? list.map(a => {
+    const from = farm(a.farmId), mine = a.farmId === view.me;
+    return `<div class="card alert ${a.status}">
+      <div class="row between"><h3>🔥 ${esc(from ? from.name : 'Unknown farm')}</h3>
+        <span class="pill ${a.status === 'active' ? 'red' : 'grey'}">${a.status === 'active' ? 'ACTIVE' : 'Fire out'}</span></div>
+      <div class="muted">${ago(a.time)}${mine || view.role === 'fire' ? '' : ' · ' + miles(distM(a, me)) + ' from you'}</div>
+      <p><b>Help needed:</b> ${esc(needsText(a))}</p>
+      ${a.msg ? `<p>“${esc(a.msg)}”</p>` : ''}
+      ${a.responses.length ? `<div><b>Responses:</b><ul>${a.responses.map(r => `<li><b>${esc(farm(r.farmId)?.name || 'Farm')}</b>: ${esc(r.text)} <span class="muted">${ago(r.time)}</span></li>`).join('')}</ul></div>` : ''}
+      <div class="row">
+        <button class="btn sm" onclick="App.viewAlert('${a.id}')">View on map</button>
+        <a class="btn sm" target="_blank" rel="noopener" href="${dirLink(a.lat, a.lng)}">Directions</a>
+        ${a.status === 'active' && !mine && view.role !== 'fire' ? `<button class="btn sm primary" onclick="App.offerHelp('${a.id}')">Offer help</button>` : ''}
+        ${a.status === 'active' && mine && view.role === 'owner' ? `<button class="btn sm" onclick="App.resolveAlert('${a.id}')">Mark fire as out</button>` : ''}
+      </div></div>`;
+  }).join('') : '<p class="empty">No fire alerts near you. 👍</p>';
+  const n = incomingAlerts().length;
+  $('#alertCount').textContent = n;
+  $('#alertCount').classList.toggle('hidden', !n);
+}
+
+function renderBanner() {
+  const list = incomingAlerts().sort((a, b) => b.time - a.time);
+  const b = $('#alertBanner');
+  if (!list.length) { b.classList.add('hidden'); }
+  else {
+    const a = list[0];
+    b.innerHTML = `🚨 <b>FIRE</b> at ${esc(farm(a.farmId)?.name || 'a farm')}${view.role === 'fire' ? '' : ' – ' + miles(distM(a, myFarm())) + ' away'}. Needs: ${esc(needsText(a))}
+      ${list.length > 1 ? ` (+${list.length - 1} more)` : ''} <button class="btn sm" onclick="App.viewAlert('${a.id}')">View</button>`;
+    b.classList.remove('hidden');
+  }
+  if (map) setTimeout(() => map.invalidateSize(), 50);
+}
+
+/* ---------- Safety plan (employees) ---------- */
+function renderPlan() {
+  const f = myFarm(), p = state.plans[view.me] || {};
+  const val = k => esc(p[k] || '');
+  const mine = state.features.filter(x => x.farmId === view.me && canSee(x));
+  const list = arr => arr.length ? `<ul class="flist">${arr.map(x => {
+    const t = TYPES[x.kind].items[x.type];
+    return `<li>${t.icon} <b>${esc(x.name)}</b> <span class="muted">${t.label}</span>${x.notes ? `<br><small>${esc(x.notes)}</small>` : ''}
+      <div class="row"><button class="btn sm" onclick="App.focus('${x.id}')">Show on map</button>
+      <a class="btn sm" target="_blank" rel="noopener" href="${dirLink(x.lat, x.lng)}">Directions</a></div></li>`;
+  }).join('')}</ul>` : '<p class="muted">None added yet.</p>';
+  const lists = `<div class="card"><h3>💧 Water & safety points</h3>${list(mine.filter(x => x.kind !== 'hazard'))}</div>
+    <div class="card"><h3>⚠️ Hazards</h3>${list(mine.filter(x => x.kind === 'hazard'))}</div>`;
+
+  if (view.role === 'owner') {
+    $('#planView').innerHTML = `<div class="card"><h2>Fire safety plan – ${esc(f.name)}</h2>
+      <p class="muted">Your employees can read this in the app (switch “View as” to Employee to preview).</p>
+      <label>Farm address / postcode<input id="p-address" value="${val('address')}"></label>
+      <label>what3words for the main entrance<input id="p-w3w" value="${val('w3w')}" placeholder="///word.word.word"></label>
+      <label>Assembly point<input id="p-assembly" value="${val('assembly')}"></label>
+      <label>Emergency contacts<textarea id="p-contacts" rows="4">${val('contacts')}</textarea></label>
+      <label>What to do if there's a fire<textarea id="p-procedure" rows="9">${val('procedure')}</textarea></label>
+      <label>Other notes (e.g. where keys are kept)<textarea id="p-notes" rows="3">${val('notes')}</textarea></label>
+      <div class="row"><button class="btn primary" id="p-save">Save plan</button><button class="btn" onclick="window.print()">Print</button></div></div>${lists}`;
+    $('#p-save').onclick = () => {
+      state.plans[view.me] = { address: $('#p-address').value, w3w: $('#p-w3w').value, assembly: $('#p-assembly').value,
+        contacts: $('#p-contacts').value, procedure: $('#p-procedure').value, notes: $('#p-notes').value };
+      save(); toast('Plan saved');
+    };
+  } else {
+    $('#planView').innerHTML = `<div class="card"><h2>Fire safety plan – ${esc(f.name)}</h2>
+      <div class="callout"><b>In an emergency call 999.</b><div class="row"><a class="btn red" href="tel:999">📞 Call 999</a></div></div>
+      ${p.address ? `<p><b>Address:</b> ${val('address')}</p>` : ''}
+      ${p.w3w ? `<p><b>what3words:</b> ${val('w3w')}</p>` : ''}
+      ${p.assembly ? `<p><b>Assembly point:</b> ${val('assembly')}</p>` : ''}
+      <h3>What to do</h3><div class="pre">${p.procedure ? val('procedure') : 'Not written yet – ask the farm owner.'}</div>
+      ${p.contacts ? `<h3>Contacts</h3><div class="pre">${val('contacts')}</div>` : ''}
+      ${p.notes ? `<h3>Notes</h3><div class="pre">${val('notes')}</div>` : ''}
+      <div class="row"><button class="btn" onclick="window.print()">Print</button></div></div>${lists}`;
+  }
+}
+function focusFeature(id) {
+  const f = state.features.find(x => x.id === id); if (!f) return;
+  showTab('map');
+  setTimeout(() => { map.setView([f.lat, f.lng], 18); markers[id] && markers[id].openPopup(); }, 80);
+}
+
+/* ---------- Equipment log ---------- */
+function eqStatus(e) {
+  const d = daysUntil(e.expiry);
+  if (d === null) return { cls: 'grey', txt: 'No date' };
+  if (d < 0) return { cls: 'red', txt: `Overdue ${-d} days` };
+  if (d <= 30) return { cls: 'amber', txt: `Due in ${d} days` };
+  return { cls: 'green', txt: 'OK' };
+}
+function renderEquipment() {
+  const items = state.equipment.filter(e => e.farmId === view.me)
+    .sort((a, b) => (a.expiry || '9999').localeCompare(b.expiry || '9999'));
+  const c = { red: 0, amber: 0, green: 0, grey: 0 };
+  items.forEach(e => c[eqStatus(e).cls]++);
+  $('#equipView').innerHTML = `
+    <div class="stats"><div class="stat red">${c.red}<span>Overdue</span></div><div class="stat amber">${c.amber}<span>Due within 30 days</span></div><div class="stat green">${c.green}<span>OK</span></div></div>
+    <div class="row" style="max-width:900px;margin:12px auto 0"><button class="btn primary" onclick="App.editEquip()">+ Add equipment</button><button class="btn" onclick="App.exportCSV()">Export CSV</button></div>
+    <div class="tablewrap"><table><thead><tr><th>Status</th><th>ID / name</th><th>Type</th><th>Location</th><th>Last test</th><th>Expiry / next test</th><th></th></tr></thead>
+    <tbody>${items.map(e => { const s = eqStatus(e); return `<tr><td><span class="pill ${s.cls}">${s.txt}</span></td><td><b>${esc(e.name)}</b></td><td>${esc(e.type)}</td><td>${esc(e.location)}</td><td>${fmtDate(e.lastTest)}</td><td>${fmtDate(e.expiry)}</td><td><button class="btn sm" onclick="App.editEquip('${e.id}')">Edit</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="empty">Nothing logged yet.</td></tr>'}</tbody></table></div>`;
+}
+function editEquip(id) {
+  const e = id ? state.equipment.find(x => x.id === id) : { id: null, farmId: view.me, name: '', type: EQUIP_TYPES[0], location: '', lastTest: todayISO(), expiry: addDays(365), notes: '' };
+  modal(`<h2>${id ? 'Edit equipment' : 'Add equipment'}</h2>
+    <label>ID / name<input id="e-name" value="${esc(e.name)}" placeholder="e.g. EXT-04"></label>
+    <label>Type<select id="e-type">${EQUIP_TYPES.map(t => `<option ${t === e.type ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
+    <label>Location<input id="e-loc" value="${esc(e.location)}" placeholder="e.g. Grain store door"></label>
+    <label>Last test / service date<input type="date" id="e-last" value="${esc(e.lastTest)}"></label>
+    <label>Expiry / next test due<input type="date" id="e-exp" value="${esc(e.expiry)}"></label>
+    <div class="row"><button class="btn sm" id="e-plus1">Set to 1 year after last test</button></div>
+    <label>Notes<textarea id="e-notes" rows="2">${esc(e.notes)}</textarea></label>
+    <div class="row"><button class="btn primary" id="e-save">Save</button>
+    ${id && view.role === 'owner' ? '<button class="btn danger" id="e-del">Delete</button>' : ''}
+    <button class="btn" id="e-cancel">Cancel</button></div>`);
+  $('#e-plus1').onclick = () => { const v = $('#e-last').value; if (!v) return; const d = new Date(v + 'T00:00:00'); d.setFullYear(d.getFullYear() + 1); $('#e-exp').value = d.toISOString().slice(0, 10); };
+  $('#e-cancel').onclick = closeModal;
+  $('#e-save').onclick = () => {
+    const name = $('#e-name').value.trim(); if (!name) { alert('Please give it an ID or name.'); return; }
+    const data = { ...e, name, type: $('#e-type').value, location: $('#e-loc').value.trim(), lastTest: $('#e-last').value, expiry: $('#e-exp').value, notes: $('#e-notes').value.trim() };
+    if (id) state.equipment[state.equipment.findIndex(x => x.id === id)] = data;
+    else { data.id = uid(); state.equipment.push(data); }
+    save(); closeModal(); renderEquipment(); toast('Saved');
+  };
+  if ($('#e-del')) $('#e-del').onclick = () => { if (confirm('Delete this record?')) { state.equipment = state.equipment.filter(x => x.id !== id); save(); closeModal(); renderEquipment(); } };
+}
+function exportCSV() {
+  const rows = [['ID/Name', 'Type', 'Location', 'Last test', 'Expiry/next test', 'Status', 'Notes']];
+  state.equipment.filter(e => e.farmId === view.me).forEach(e => rows.push([e.name, e.type, e.location, e.lastTest, e.expiry, eqStatus(e).txt, e.notes]));
+  const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  download(`fire-equipment-${todayISO()}.csv`, csv, 'text/csv');
+}
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ---------- Farms / settings ---------- */
+function renderSettings() {
+  const f = myFarm();
+  $('#settingsView').innerHTML = `
+    <div class="card"><h2>My farm</h2>
+      <label>Farm name<input id="s-name" value="${esc(f.name)}"></label>
+      <p class="muted">Farmyard location: ${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}</p>
+      <div class="row"><button class="btn primary" id="s-save">Save name</button><button class="btn" id="s-loc">Set location on map</button><button class="btn" id="s-gps">Use my GPS</button></div></div>
+    <div class="card"><h2>Farms in the network</h2>
+      <p class="muted">In this demo you add neighbouring farms here. In the live version each farm would sign up with its own account.</p>
+      <ul class="flist">${state.farms.map(x => {
+        if (x.id === view.me) return `<li><b>${esc(x.name)}</b> <span class="pill green">You</span></li>`;
+        const d = distM(f, x);
+        return `<li><b>${esc(x.name)}</b> <span class="muted">${miles(d)} away${d <= RADIUS ? ' · within alert radius' : ''}</span>
+          <button class="btn sm danger" onclick="App.removeFarm('${x.id}')">Remove</button></li>`;
+      }).join('')}</ul>
+      <div class="row"><input id="s-newfarm" placeholder="New farm name"><button class="btn" id="s-add">Add & place on map</button></div></div>
+    <div class="card"><h2>Backup</h2>
+      <p class="muted">Demo data is saved in this browser only. Download a backup to keep it safe.</p>
+      <div class="row"><button class="btn" id="s-export">Download backup</button>
+      <label class="btn" style="margin:0;font-weight:400">Restore backup<input type="file" id="s-import" accept=".json" hidden></label>
+      <button class="btn danger" id="s-reset">Reset demo data</button></div></div>`;
+  $('#s-save').onclick = () => { const n = $('#s-name').value.trim(); if (!n) return; f.name = n; save(); refreshAll(); toast('Saved'); };
+  $('#s-loc').onclick = () => { showTab('map'); setMode('farmloc', 'Tap your farmyard on the map.'); };
+  $('#s-gps').onclick = () => {
+    if (!navigator.geolocation) return alert('GPS not available.');
+    navigator.geolocation.getCurrentPosition(p => { f.lat = p.coords.latitude; f.lng = p.coords.longitude; save(); refreshAll(); map.setView([f.lat, f.lng], 15); toast('Farm location saved'); },
+      err => alert('Could not get GPS: ' + err.message), { enableHighAccuracy: true, timeout: 10000 });
+  };
+  $('#s-add').onclick = () => {
+    const n = $('#s-newfarm').value.trim(); if (!n) { alert('Type the farm name first.'); return; }
+    pendingFarmName = n; showTab('map'); setMode('newfarm', `Tap where ${n} is.`);
+  };
+  $('#s-export').onclick = () => download(`farmfire-backup-${todayISO()}.json`, JSON.stringify(state, null, 2), 'application/json');
+  $('#s-import').onchange = ev => {
+    const file = ev.target.files[0]; if (!file) return;
+    const r = new FileReader();
+    r.onload = () => { try { const s = JSON.parse(r.result); if (!s.farms) throw 0; state = s; save(); view = loadView(); refreshAll(); toast('Backup restored'); } catch (e) { alert('That file is not a valid backup.'); } };
+    r.readAsText(file);
+  };
+  $('#s-reset').onclick = () => { if (confirm('Reset everything back to the demo data?')) { state = seed(); save(); view = { role: 'owner', me: 'f1' }; saveView(); refreshAll(); map.setView([myFarm().lat, myFarm().lng], 15); } };
+}
+function removeFarm(id) {
+  if (!confirm('Remove this farm and its map items?')) return;
+  state.farms = state.farms.filter(f => f.id !== id);
+  state.features = state.features.filter(f => f.farmId !== id);
+  save(); refreshAll();
+}
+
+/* ---------- UI plumbing ---------- */
+function modal(html) { $('#modalBody').innerHTML = html; $('#modal').classList.remove('hidden'); }
+function closeModal() { $('#modal').classList.add('hidden'); $('#modalBody').innerHTML = ''; }
+
+function renderViewAs() {
+  const sel = $('#viewAs'); sel.innerHTML = '';
+  state.farms.forEach(f => {
+    sel.add(new Option('Owner – ' + f.name, 'owner:' + f.id));
+    sel.add(new Option('Employee – ' + f.name, 'employee:' + f.id));
+  });
+  sel.add(new Option('🚒 Fire service', 'fire:'));
+  sel.value = view.role === 'fire' ? 'fire:' : view.role + ':' + view.me;
+}
+function applyRole() {
+  const allowed = { owner: ['map', 'alerts', 'plan', 'equipment', 'settings'], employee: ['map', 'alerts', 'plan', 'equipment'], fire: ['map', 'alerts'] }[view.role];
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('hidden', !allowed.includes(b.dataset.tab)));
+  if (!allowed.includes(currentTab)) showTab('map');
+  $('#fireBtn').classList.toggle('hidden', view.role === 'fire');
+  $('#addBtn').classList.toggle('hidden', view.role !== 'owner');
+}
+function showTab(t) {
+  currentTab = t;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  document.querySelectorAll('.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + t));
+  if (t === 'map') setTimeout(() => map.invalidateSize(), 50);
+}
+function refreshAll() {
+  renderViewAs(); applyRole(); renderMap(); renderAlerts(); renderBanner();
+  renderPlan(); renderEquipment(); renderSettings();
+}
+
+function init() {
+  state = load(); save();
+  view = loadView();
+  initMap();
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+  $('#viewAs').onchange = e => {
+    const [role, id] = e.target.value.split(':');
+    view.role = role; if (id) view.me = id; saveView();
+    setMode(null); refreshAll();
+    if (role !== 'fire') map.setView([myFarm().lat, myFarm().lng], 15);
+  };
+  $('#addBtn').onclick = () => { showTab('map'); setMode('add', 'Tap the map where the item is.'); };
+  $('#cancelAdd').onclick = () => setMode(null);
+  $('#fireBtn').onclick = startFire;
+  // Keeps two browser tabs in sync (e.g. one as Manor Farm, one as Hill Top Farm)
+  window.addEventListener('storage', e => { if (e.key === KEY) { state = load(); view = loadView(); refreshAll(); } });
+  setInterval(() => { if (currentTab === 'alerts') renderAlerts(); }, 60000);
+  refreshAll();
+}
+
+window.App = { editFeature: id => openFeatureForm(state.features.find(f => f.id === id)), viewAlert, offerHelp, resolveAlert,
+  focus: focusFeature, editEquip, exportCSV, removeFarm, closeModal };
+
+init();
+})();
+</script>
+</body>
+</html>
